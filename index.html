@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDW Corporation Shares Information</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1 id="share-entity-name">CDW Corporation Shares Information</h1>
+    <table>
+        <tr>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Fiscal Year</th>
+        </tr>
+        <tr>
+            <td>Maximum Shares Outstanding</td>
+            <td id="share-max-value"></td>
+            <td id="share-max-fy"></td>
+        </tr>
+        <tr>
+            <td>Minimum Shares Outstanding</td>
+            <td id="share-min-value"></td>
+            <td id="share-min-fy"></td>
+        </tr>
+    </table>
+    <script>
+        const defaultCIK = "0001402057";
+        const params = new URLSearchParams(window.location.search);
+        const CIK = params.get("CIK") || defaultCIK;
+
+        function updatePage(data) {
+            document.getElementById('share-entity-name').textContent = data.entityName + " Shares Information";
+            document.title = data.entityName + " Shares Information";
+            document.getElementById('share-max-value').textContent = data.max.val;
+            document.getElementById('share-max-fy').textContent = data.max.fy;
+            document.getElementById('share-min-value').textContent = data.min.val;
+            document.getElementById('share-min-fy').textContent = data.min.fy;
+        }
+
+        async function fetchData(cik) {
+            const url = `https://data.sec.gov/api/xbrl/companyconcept/CIK${cik}/dei/EntityCommonStockSharesOutstanding.json`;
+            try {
+                const response = await fetch(url, {
+                    headers: { "User-Agent": "Mozilla/5.0 CDWCorp App" }
+                });
+                const json = await response.json();
+                
+                const data = parseData(json);
+                if (data) updatePage(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function parseData(json) {
+            const entityName = json.entityName;
+            const shares = json.units.shares.filter(entry => entry.fy > "2020" && !isNaN(entry.val));
+            if (shares.length === 0) return null;
+
+            const max = shares.reduce((prev, current) => (prev.val > current.val) ? prev : current);
+            const min = shares.reduce((prev, current) => (prev.val < current.val) ? prev : current);
+
+            return { entityName, max: { val: max.val, fy: max.fy }, min: { val: min.val, fy: min.fy } };
+        }
+
+        fetchData(CIK);
+    </script>
+</body>
